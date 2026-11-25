@@ -10,6 +10,9 @@ const DEFAULT_SETTINGS = {
 };
 
 const STORAGE_KEY = "smart-clock-settings-v2";
+const VALID_STYLES = ["flip", "digital", "analog", "minimal"];
+const VALID_THEMES = ["midnight", "light", "aurora", "sunset"];
+
 const root = document.body;
 const clockFace = document.getElementById("clockFace");
 const locationName = document.getElementById("locationName");
@@ -22,13 +25,22 @@ const accentValue = document.getElementById("accentValue");
 const savedNote = document.getElementById("savedNote");
 
 let settings = loadSettings();
-let lastTimeSignature = "";
-let lastDateSignature = "";
 
 function loadSettings() {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    return { ...DEFAULT_SETTINGS, ...stored };
+    const merged = { ...DEFAULT_SETTINGS, ...stored };
+
+    if (!VALID_STYLES.includes(merged.style)) merged.style = DEFAULT_SETTINGS.style;
+    if (!VALID_THEMES.includes(merged.theme)) merged.theme = DEFAULT_SETTINGS.theme;
+    if (!["12", "24"].includes(String(merged.format))) merged.format = DEFAULT_SETTINGS.format;
+    if (typeof merged.timeZone !== "string") merged.timeZone = "local";
+    if (typeof merged.showSeconds !== "boolean") merged.showSeconds = true;
+    if (typeof merged.showDate !== "boolean") merged.showDate = true;
+    if (typeof merged.showTimezone !== "boolean") merged.showTimezone = true;
+    if (typeof merged.accent !== "string" || !/^#[0-9a-f]{6}$/i.test(merged.accent)) merged.accent = "";
+
+    return merged;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
@@ -44,31 +56,41 @@ function saveSettings() {
 }
 
 function getTimeZone() {
-  return settings.timeZone === "local"
+  const requested = settings.timeZone === "local"
     ? Intl.DateTimeFormat().resolvedOptions().timeZone
     : settings.timeZone;
+
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: requested });
+    return requested;
+  } catch {
+    settings.timeZone = "local";
+    timeZoneSelect.value = "local";
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }
 }
 
 function getClockParts(date) {
   const timeZone = getTimeZone();
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: settings.format === "12",
-    hourCycle: settings.format === "12" ? "h12" : "h23"
-  });
   const parts = Object.fromEntries(
-    formatter.formatToParts(date).map((part) => [part.type, part.value])
-  );
-  return {
-    hour: Number(parts.hour) % 12 || (settings.format === "12" ? 12 : 0),
-    hour24: Number(new Intl.DateTimeFormat("en-US", {
+    new Intl.DateTimeFormat("en-US", {
       timeZone,
       hour: "2-digit",
-      hourCycle: "h23"
-    }).format(date)),
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: settings.format === "12"
+    }).formatToParts(date).map((part) => [part.type, part.value])
+  );
+
+  const hour24 = Number(new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "2-digit",
+    hourCycle: "h23"
+  }).format(date));
+
+  return {
+    hour: Number(parts.hour),
+    hour24,
     minute: Number(parts.minute),
     second: Number(parts.second),
     period: parts.dayPeriod || "",
@@ -77,14 +99,10 @@ function getClockParts(date) {
 }
 
 function getTimeZoneLabel(date, timeZone) {
-  try {
-    return new Intl.DateTimeFormat("en-US", {
-      timeZone,
-      timeZoneName: "short"
-    }).formatToParts(date).find((part) => part.type === "timeZoneName")?.value || timeZone;
-  } catch {
-    return timeZone;
-  }
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    timeZoneName: "short"
+  }).formatToParts(date).find((part) => part.type === "timeZoneName")?.value || timeZone;
 }
 
 function getDateLabel(date, timeZone) {
@@ -105,15 +123,15 @@ function buildAnalogFace() {
   const ticks = Array.from({ length: 60 }, (_, index) => {
     const angle = index * 6;
     const major = index % 5 === 0;
-    return `<span class="analog-tick ${major ? "major" : ""}" style="transform:rotate(${angle}deg) translateY(-99px)"></span>`;
+    return `<span class="analog-tick ${major ? "major" : ""}" style="transform:rotate(${angle}deg)"></span>`;
   }).join("");
 
   const numerals = Array.from({ length: 12 }, (_, index) => {
     const number = index + 1;
     const angle = (number * 30 - 90) * Math.PI / 180;
-    const radius = 79;
-    const x = 50 + Math.cos(angle) * radius / 2.2;
-    const y = 50 + Math.sin(angle) * radius / 2.2;
+    const radius = 79 / 2.2;
+    const x = 50 + Math.cos(angle) * radius;
+    const y = 50 + Math.sin(angle) * radius;
     return `<span class="analog-number" style="left:${x}%;top:${y}%">${number}</span>`;
   }).join("");
 
@@ -127,24 +145,25 @@ function buildAnalogFace() {
 }
 
 function setStyle(style) {
-  settings.style = style;
+  settings.style = VALID_STYLES.includes(style) ? style : DEFAULT_SETTINGS.style;
+
   document.querySelectorAll("[data-style]").forEach((button) => {
-    const active = button.dataset.style === style;
+    const active = button.dataset.style === settings.style;
     button.classList.toggle("is-active", active);
     button.setAttribute("aria-pressed", String(active));
   });
 
-  clockFace.className = `clock-face face-${style}`;
+  clockFace.className = `clock-face face-${settings.style}`;
 
-  if (style === "analog") {
+  if (settings.style === "analog") {
     buildAnalogFace();
-  } else if (style === "flip") {
+  } else if (settings.style === "flip") {
     clockFace.innerHTML = `<div class="flip-display" aria-hidden="true">
       <span class="flip-digit" id="hourDigits">--</span><span class="time-separator">:</span>
       <span class="flip-digit" id="minuteDigits">--</span><span class="time-separator seconds-separator">:</span>
       <span class="flip-digit small-digit" id="secondDigits">--</span>
     </div>`;
-  } else if (style === "digital") {
+  } else if (settings.style === "digital") {
     clockFace.innerHTML = `<div class="digital-display" aria-hidden="true">
       <span id="hourDigits">--</span><span class="colon">:</span><span id="minuteDigits">--</span>
       <span class="seconds" id="secondDigits">--</span>
@@ -160,33 +179,28 @@ function setStyle(style) {
   saveSettings();
 }
 
-function setTheme(theme) {
-  settings.theme = theme;
-  root.dataset.theme = theme;
-  document.querySelectorAll("[data-theme]").forEach((button) => {
-    const active = button.dataset.theme === theme;
+function setTheme(theme, resetAccent = true) {
+  settings.theme = VALID_THEMES.includes(theme) ? theme : DEFAULT_SETTINGS.theme;
+  root.dataset.theme = settings.theme;
+
+  document.querySelectorAll(".theme-swatch").forEach((button) => {
+    const active = button.dataset.theme === settings.theme;
     button.classList.toggle("is-active", active);
     button.setAttribute("aria-pressed", String(active));
   });
 
-  // Clear a custom color when the user explicitly changes the preset theme.
-  settings.accent = "";
+  if (resetAccent) settings.accent = "";
   applyAccent();
   saveSettings();
 }
 
 function hexToRgb(hex) {
-  const clean = hex.replace("#", "");
-  const value = clean.length === 3
-    ? clean.split("").map((character) => character + character).join("")
-    : clean;
-  const number = Number.parseInt(value, 16);
+  const number = Number.parseInt(hex.slice(1), 16);
   return [(number >> 16) & 255, (number >> 8) & 255, number & 255];
 }
 
 function applyAccent() {
-  const custom = settings.accent && /^#[0-9a-f]{6}$/i.test(settings.accent);
-  if (custom) {
+  if (settings.accent) {
     const [red, green, blue] = hexToRgb(settings.accent);
     root.style.setProperty("--accent", settings.accent);
     root.style.setProperty("--accent-rgb", `${red},${green},${blue}`);
@@ -195,28 +209,18 @@ function applyAccent() {
     root.style.removeProperty("--accent-rgb");
   }
 
-  const currentAccent = custom
-    ? settings.accent
-    : getComputedStyle(root).getPropertyValue("--accent").trim() || "#a78bfa";
+  const currentAccent = settings.accent ||
+    getComputedStyle(root).getPropertyValue("--accent").trim() || "#a78bfa";
   accentInput.value = currentAccent;
   accentValue.textContent = currentAccent.toUpperCase();
 }
 
 function updateClock() {
   const now = new Date();
-  let parts;
-
-  try {
-    parts = getClockParts(now);
-  } catch (error) {
-    console.error("Unable to format selected time zone:", error);
-    parts = getClockParts(now);
-  }
-
+  const parts = getClockParts(now);
   const hourText = formatNumber(parts.hour);
   const minuteText = formatNumber(parts.minute);
   const secondText = formatNumber(parts.second);
-  const timeSignature = `${settings.timeZone}|${settings.format}|${hourText}|${minuteText}|${secondText}`;
 
   if (settings.style === "analog") {
     const hourAngle = ((parts.hour24 % 12) + parts.minute / 60) * 30;
@@ -255,15 +259,6 @@ function updateClock() {
     hour12: settings.format === "12"
   }).format(now);
   clockFace.setAttribute("aria-label", `Current time in ${parts.timeZone}: ${readableTime}`);
-
-  if (settings.style === "flip" || settings.style === "digital") {
-    const secondsElement = document.getElementById("secondDigits");
-    if (secondsElement) secondsElement.textContent = secondText;
-  }
-
-  lastTimeSignature = timeSignature;
-  const dateSignature = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}|${settings.timeZone}`;
-  if (dateSignature !== lastDateSignature) lastDateSignature = dateSignature;
 }
 
 function renderClock() {
@@ -272,18 +267,29 @@ function renderClock() {
 
 function syncControls() {
   timeZoneSelect.value = settings.timeZone;
-  accentInput.value = settings.accent || getComputedStyle(root).getPropertyValue("--accent").trim() || "#a78bfa";
-  accentValue.textContent = accentInput.value.toUpperCase();
+  if (timeZoneSelect.value !== settings.timeZone) {
+    settings.timeZone = "local";
+    timeZoneSelect.value = "local";
+  }
+
   document.querySelectorAll("[data-format]").forEach((button) => {
     const active = button.dataset.format === settings.format;
     button.classList.toggle("is-active", active);
     button.setAttribute("aria-pressed", String(active));
   });
+
   document.getElementById("showSeconds").checked = settings.showSeconds;
   document.getElementById("showDate").checked = settings.showDate;
   document.getElementById("showTimezone").checked = settings.showTimezone;
-  document.querySelectorAll("[data-theme]").forEach((button) => {
+
+  document.querySelectorAll(".theme-swatch").forEach((button) => {
     const active = button.dataset.theme === settings.theme;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+
+  document.querySelectorAll("[data-style]").forEach((button) => {
+    const active = button.dataset.style === settings.style;
     button.classList.toggle("is-active", active);
     button.setAttribute("aria-pressed", String(active));
   });
@@ -293,7 +299,7 @@ document.querySelectorAll("[data-style]").forEach((button) => {
   button.addEventListener("click", () => setStyle(button.dataset.style));
 });
 
-document.querySelectorAll("[data-theme]").forEach((button) => {
+document.querySelectorAll(".theme-swatch").forEach((button) => {
   button.addEventListener("click", () => setTheme(button.dataset.theme));
 });
 
@@ -333,10 +339,9 @@ accentInput.addEventListener("input", () => {
 document.getElementById("resetSettings").addEventListener("click", () => {
   settings = { ...DEFAULT_SETTINGS };
   root.dataset.theme = settings.theme;
-  setStyle(settings.style);
-  syncControls();
   applyAccent();
-  renderClock();
+  syncControls();
+  setStyle(settings.style);
   saveSettings();
 });
 
@@ -344,12 +349,8 @@ function initialize() {
   root.dataset.theme = settings.theme;
   syncControls();
   applyAccent();
-  // setStyle also renders and synchronizes the selected style buttons.
-  const initialStyle = settings.style;
-  settings.style = "";
-  setStyle(initialStyle);
-  renderClock();
-  window.setInterval(updateClock, settings.showSeconds ? 250 : 1000);
+  setStyle(settings.style);
+  window.setInterval(updateClock, 1000);
 }
 
 initialize();
