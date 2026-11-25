@@ -36,6 +36,7 @@ body[data-theme="sunset"]{--bg:#1b111c;--panel:rgba(43,25,39,.9);--panel-strong:
 .face-flip.hide-seconds .small-digit,
 .face-flip.hide-seconds .seconds-separator,
 .face-digital.hide-seconds .seconds,
+.face-digital.hide-seconds .seconds-colon,
 .face-minimal.hide-seconds .seconds,
 .face-analog.hide-seconds #secondHand {
   display: none;
