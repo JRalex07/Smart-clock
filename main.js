@@ -78,7 +78,7 @@ function getClockParts(date) {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
-      hour12: settings.format === "12"
+      hourCycle: settings.format === "12" ? "h12" : "h23"
     }).formatToParts(date).map((part) => [part.type, part.value])
   );
 
