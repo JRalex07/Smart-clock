@@ -1,95 +1,181 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="A minimal animated digital clock with 12-hour and 24-hour time formats." />
-  <meta name="theme-color" content="#dfe6f6" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#10131c" />
+  <meta name="description" content="A customizable world clock with multiple clock faces, themes, and time settings." />
+  <title>Smart Clock — Your Time, Your Style</title>
   <link rel="stylesheet" href="style.css" />
   <script defer src="main.js"></script>
-  <title>Smart Clock — Local Time</title>
 </head>
-<body>
-  <label class="switch" title="Toggle 12-hour time format">
-    <input
-      type="checkbox"
-      id="toggleFormat"
-      aria-label="Use 12-hour time format"
-      aria-controls="clock ampm"
-    />
-    <span class="slider" aria-hidden="true"></span>
-  </label>
+<body data-theme="midnight">
+  <div class="app-background" aria-hidden="true"></div>
 
-  <div class="clock" id="clock" role="img" aria-label="Digital clock showing local time">
-    <div class="hr">
-      <div class="strip">
-        <div class="number">0</div>
-        <div class="number">1</div>
-        <div class="number">2</div>
-      </div>
-      <div class="strip">
-        <div class="number">0</div>
-        <div class="number">1</div>
-        <div class="number">2</div>
-        <div class="number">3</div>
-        <div class="number">4</div>
-        <div class="number">5</div>
-        <div class="number">6</div>
-        <div class="number">7</div>
-        <div class="number">8</div>
-        <div class="number">9</div>
-      </div>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Smart Clock home">
+      <span class="brand-mark" aria-hidden="true"><span></span></span>
+      <span class="brand-name">smart<span>clock</span></span>
+    </a>
+    <div class="topbar-right">
+      <span class="live-indicator"><span class="live-dot"></span> LIVE CLOCK</span>
+      <span class="topbar-divider" aria-hidden="true"></span>
+      <span class="topbar-caption">A little more personal.</span>
     </div>
-    <div class="min">
-      <div class="strip">
-        <div class="number">0</div>
-        <div class="number">1</div>
-        <div class="number">2</div>
-        <div class="number">3</div>
-        <div class="number">4</div>
-        <div class="number">5</div>
+  </header>
+
+  <main class="app-shell">
+    <section class="intro">
+      <div>
+        <p class="eyebrow">TIME, REIMAGINED</p>
+        <h1>Your time.<br /><span>Your style.</span></h1>
+        <p class="intro-copy">A clock that feels like yours. Choose a face, set the mood, and make every second look the way you like.</p>
       </div>
-      <div class="strip">
-        <div class="number">0</div>
-        <div class="number">1</div>
-        <div class="number">2</div>
-        <div class="number">3</div>
-        <div class="number">4</div>
-        <div class="number">5</div>
-        <div class="number">6</div>
-        <div class="number">7</div>
-        <div class="number">8</div>
-        <div class="number">9</div>
-      </div>
+      <div class="intro-chip"><span class="chip-spark">✳</span> Made for your desk</div>
+    </section>
+
+    <div class="workspace">
+      <section class="clock-column" aria-label="Clock preview">
+        <div class="clock-panel">
+          <div class="panel-topline">
+            <div class="location-heading">
+              <span class="location-icon" aria-hidden="true">⌖</span>
+              <div>
+                <span class="micro-label">CURRENT TIME IN</span>
+                <strong id="locationName">YOUR LOCATION</strong>
+              </div>
+            </div>
+            <span class="panel-status"><span class="status-pulse"></span> REAL TIME</span>
+          </div>
+
+          <div id="clockFace" class="clock-face face-flip" role="img" aria-label="Current local time">
+            <div class="flip-display" aria-hidden="true">
+              <span class="flip-digit">--</span><span class="time-separator">:</span>
+              <span class="flip-digit">--</span><span class="time-separator">:</span>
+              <span class="flip-digit small-digit">--</span>
+            </div>
+          </div>
+
+          <div class="clock-meta">
+            <div>
+              <p class="date-label" id="dateLabel">LOADING DATE</p>
+              <p class="timezone-label" id="timezoneLabel">Local time zone</p>
+            </div>
+            <span id="dayPeriod" class="day-period">--</span>
+          </div>
+
+          <div class="panel-bottom">
+            <span>DESIGNED TO MATCH YOUR RHYTHM</span>
+            <span class="bottom-mark">SC<span>.</span>01</span>
+          </div>
+        </div>
+
+        <div class="style-picker">
+          <div class="section-heading">
+            <div><span class="eyebrow">01 / DISPLAY</span><h2>Choose your clock</h2></div>
+            <span class="section-hint">4 styles</span>
+          </div>
+          <div class="style-grid" role="group" aria-label="Clock style">
+            <button class="style-option is-active" type="button" data-style="flip" aria-pressed="true">
+              <span class="style-preview preview-flip" aria-hidden="true"><i>10</i><b>:</b><i>28</i></span>
+              <span class="style-option-name">Flip</span><span class="style-option-detail">Classic motion</span>
+            </button>
+            <button class="style-option" type="button" data-style="digital" aria-pressed="false">
+              <span class="style-preview preview-digital" aria-hidden="true">10:28</span>
+              <span class="style-option-name">Digital</span><span class="style-option-detail">Bold and clear</span>
+            </button>
+            <button class="style-option" type="button" data-style="analog" aria-pressed="false">
+              <span class="style-preview preview-analog" aria-hidden="true"><i></i><b></b></span>
+              <span class="style-option-name">Analog</span><span class="style-option-detail">Timeless hands</span>
+            </button>
+            <button class="style-option" type="button" data-style="minimal" aria-pressed="false">
+              <span class="style-preview preview-minimal" aria-hidden="true">10<span>:</span>28</span>
+              <span class="style-option-name">Minimal</span><span class="style-option-detail">Quiet focus</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="customizer" aria-label="Clock customization">
+        <div class="customizer-header">
+          <div>
+            <span class="eyebrow">PERSONALIZE</span>
+            <h2>Make it yours</h2>
+          </div>
+          <span class="settings-symbol" aria-hidden="true">✳</span>
+        </div>
+
+        <section class="control-section">
+          <div class="control-heading"><h3>Appearance</h3><span>02</span></div>
+          <label class="field-label" for="themeSelect">Theme</label>
+          <div class="theme-grid" id="themeOptions" role="group" aria-label="Color theme">
+            <button class="theme-swatch theme-midnight is-active" type="button" data-theme="midnight" aria-label="Midnight theme" aria-pressed="true"><span></span></button>
+            <button class="theme-swatch theme-light" type="button" data-theme="light" aria-label="Light theme" aria-pressed="false"><span></span></button>
+            <button class="theme-swatch theme-aurora" type="button" data-theme="aurora" aria-label="Aurora theme" aria-pressed="false"><span></span></button>
+            <button class="theme-swatch theme-sunset" type="button" data-theme="sunset" aria-label="Sunset theme" aria-pressed="false"><span></span></button>
+          </div>
+          <div class="accent-row">
+            <label class="field-label" for="accentColor">Accent color</label>
+            <div class="color-control"><input id="accentColor" type="color" value="#a78bfa" /><span id="accentValue">#A78BFA</span></div>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <div class="control-heading"><h3>Time format</h3><span>03</span></div>
+          <div class="segmented-control" role="group" aria-label="Time format">
+            <button type="button" data-format="12" aria-pressed="false">12-hour</button>
+            <button type="button" data-format="24" class="is-active" aria-pressed="true">24-hour</button>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <div class="control-heading"><h3>Time zone</h3><span>04</span></div>
+          <label class="field-label" for="timeZone">Show time for</label>
+          <select id="timeZone" class="select-control">
+            <option value="local">My local time</option>
+            <option value="UTC">UTC</option>
+            <option value="Asia/Kolkata">India · Kolkata</option>
+            <option value="Europe/London">United Kingdom · London</option>
+            <option value="Europe/Paris">France · Paris</option>
+            <option value="America/New_York">USA · New York</option>
+            <option value="America/Los_Angeles">USA · Los Angeles</option>
+            <option value="Asia/Dubai">UAE · Dubai</option>
+            <option value="Asia/Singapore">Singapore</option>
+            <option value="Asia/Tokyo">Japan · Tokyo</option>
+            <option value="Australia/Sydney">Australia · Sydney</option>
+          </select>
+        </section>
+
+        <section class="control-section options-section">
+          <div class="control-heading"><h3>On the clock</h3><span>05</span></div>
+          <label class="toggle-row" for="showSeconds">
+            <span><strong>Show seconds</strong><small>Keep every second in view</small></span>
+            <input id="showSeconds" type="checkbox" checked />
+            <span class="toggle-track" aria-hidden="true"></span>
+          </label>
+          <label class="toggle-row" for="showDate">
+            <span><strong>Show date</strong><small>Display today's date</small></span>
+            <input id="showDate" type="checkbox" checked />
+            <span class="toggle-track" aria-hidden="true"></span>
+          </label>
+          <label class="toggle-row" for="showTimezone">
+            <span><strong>Show time zone</strong><small>Display the zone abbreviation</small></span>
+            <input id="showTimezone" type="checkbox" checked />
+            <span class="toggle-track" aria-hidden="true"></span>
+          </label>
+        </section>
+
+        <div class="customizer-footer">
+          <button id="resetSettings" class="reset-button" type="button"><span aria-hidden="true">↺</span> Reset to default</button>
+          <span class="saved-note" id="savedNote" role="status" aria-live="polite">Settings saved on this device</span>
+        </div>
+      </aside>
     </div>
-    <div class="sec">
-      <div class="strip">
-        <div class="number">0</div>
-        <div class="number">1</div>
-        <div class="number">2</div>
-        <div class="number">3</div>
-        <div class="number">4</div>
-        <div class="number">5</div>
-      </div>
-      <div class="strip">
-        <div class="number">0</div>
-        <div class="number">1</div>
-        <div class="number">2</div>
-        <div class="number">3</div>
-        <div class="number">4</div>
-        <div class="number">5</div>
-        <div class="number">6</div>
-        <div class="number">7</div>
-        <div class="number">8</div>
-        <div class="number">9</div>
-      </div>
-    </div>
-  </div>
-  <div id="ampm" class="ampm" aria-hidden="true"></div>
-  <div id="date" class="date"></div>
-  <button id="bgToggle" class="bg-btn" type="button">Change Background</button>
+
+    <footer class="page-footer">
+      <span>SMART CLOCK <span class="footer-dot">●</span> YOUR TIME, YOUR STYLE</span>
+      <span>Runs locally in your browser <span class="footer-heart">✳</span></span>
+    </footer>
+  </main>
 </body>
 </html>
