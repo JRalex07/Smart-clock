@@ -3,20 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="A minimal animated digital clock with 12-hour and 24-hour time formats." />
+  <meta name="theme-color" content="#dfe6f6" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
   <script defer src="main.js"></script>
-  <title>clock</title>
+  <title>Smart Clock — Local Time</title>
 </head>
 <body>
-  <label class="switch">
-    <input type="checkbox" id="toggleFormat" />
-    <span class="slider"></span>
+  <label class="switch" title="Toggle 12-hour time format">
+    <input
+      type="checkbox"
+      id="toggleFormat"
+      aria-label="Use 12-hour time format"
+      aria-controls="clock ampm"
+    />
+    <span class="slider" aria-hidden="true"></span>
   </label>
 
-  <div class="clock">
+  <div class="clock" id="clock" role="img" aria-label="Digital clock showing local time">
     <div class="hr">
       <div class="strip">
         <div class="number">0</div>
@@ -81,8 +88,8 @@
       </div>
     </div>
   </div>
-  <div id="ampm" class="ampm"></div>
+  <div id="ampm" class="ampm" aria-hidden="true"></div>
   <div id="date" class="date"></div>
-  <button id="bgToggle" class="bg-btn">Change Background</button>
+  <button id="bgToggle" class="bg-btn" type="button">Change Background</button>
 </body>
 </html>
