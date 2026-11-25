@@ -123,7 +123,7 @@ function buildAnalogFace() {
   const ticks = Array.from({ length: 60 }, (_, index) => {
     const angle = index * 6;
     const major = index % 5 === 0;
-    return `<span class="analog-tick ${major ? "major" : ""}" style="transform:rotate(${angle}deg)"></span>`;
+    return `<span class="analog-tick ${major ? "major" : ""}" style="transform:rotate(${angle}deg) translateY(-99px)"></span>`;
   }).join("");
 
   const numerals = Array.from({ length: 12 }, (_, index) => {
