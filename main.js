@@ -215,6 +215,18 @@ function applyAccent() {
   accentValue.textContent = currentAccent.toUpperCase();
 }
 
+function setDigit(element, value, animate = false) {
+  if (!element || element.textContent === value) return;
+
+  element.textContent = value;
+
+  if (animate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    element.classList.remove("is-flipping");
+    void element.offsetWidth;
+    element.classList.add("is-flipping");
+  }
+}
+
 function updateClock() {
   const now = new Date();
   const parts = getClockParts(now);
@@ -233,9 +245,10 @@ function updateClock() {
     const hours = document.getElementById("hourDigits");
     const minutes = document.getElementById("minuteDigits");
     const seconds = document.getElementById("secondDigits");
-    if (hours) hours.textContent = hourText;
-    if (minutes) minutes.textContent = minuteText;
-    if (seconds) seconds.textContent = secondText;
+    const useFlipMotion = settings.style === "flip";
+    setDigit(hours, hourText, useFlipMotion);
+    setDigit(minutes, minuteText, useFlipMotion);
+    setDigit(seconds, secondText, useFlipMotion && settings.showSeconds);
   }
 
   clockFace.classList.toggle("hide-seconds", !settings.showSeconds);
