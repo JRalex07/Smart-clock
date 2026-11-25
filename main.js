@@ -1,115 +1,369 @@
-const strips = [...document.querySelectorAll(".strip")];
-const numbersize = 8;
+const DEFAULT_SETTINGS = {
+  style: "flip",
+  theme: "midnight",
+  format: "24",
+  timeZone: "local",
+  showSeconds: true,
+  showDate: true,
+  showTimezone: true,
+  accent: ""
+};
 
-const formatToggle = document.getElementById("toggleFormat");
-const clockElement = document.getElementById("clock");
-const ampmElement = document.getElementById("ampm");
-const dateElement = document.getElementById("date");
+const STORAGE_KEY = "smart-clock-settings-v2";
+const VALID_STYLES = ["flip", "digital", "analog", "minimal"];
+const VALID_THEMES = ["midnight", "light", "aurora", "sunset"];
 
-let is24Hour = true;
-let lastRenderedDate = "";
+const root = document.body;
+const clockFace = document.getElementById("clockFace");
+const locationName = document.getElementById("locationName");
+const dateLabel = document.getElementById("dateLabel");
+const timezoneLabel = document.getElementById("timezoneLabel");
+const dayPeriod = document.getElementById("dayPeriod");
+const timeZoneSelect = document.getElementById("timeZone");
+const accentInput = document.getElementById("accentColor");
+const accentValue = document.getElementById("accentValue");
+const savedNote = document.getElementById("savedNote");
 
-function highlight(stripe, digit) {
-  const numberElement = strips[stripe]?.querySelector(
-    `.number:nth-of-type(${digit + 1})`
+let settings = loadSettings();
+
+function loadSettings() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    const merged = { ...DEFAULT_SETTINGS, ...stored };
+
+    if (!VALID_STYLES.includes(merged.style)) merged.style = DEFAULT_SETTINGS.style;
+    if (!VALID_THEMES.includes(merged.theme)) merged.theme = DEFAULT_SETTINGS.theme;
+    if (!["12", "24"].includes(String(merged.format))) merged.format = DEFAULT_SETTINGS.format;
+    if (typeof merged.timeZone !== "string") merged.timeZone = "local";
+    if (typeof merged.showSeconds !== "boolean") merged.showSeconds = true;
+    if (typeof merged.showDate !== "boolean") merged.showDate = true;
+    if (typeof merged.showTimezone !== "boolean") merged.showTimezone = true;
+    if (typeof merged.accent !== "string" || !/^#[0-9a-f]{6}$/i.test(merged.accent)) merged.accent = "";
+
+    return merged;
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    savedNote.textContent = "Settings saved on this device";
+  } catch {
+    savedNote.textContent = "Settings active for this session";
+  }
+}
+
+function getTimeZone() {
+  const requested = settings.timeZone === "local"
+    ? Intl.DateTimeFormat().resolvedOptions().timeZone
+    : settings.timeZone;
+
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: requested });
+    return requested;
+  } catch {
+    settings.timeZone = "local";
+    timeZoneSelect.value = "local";
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }
+}
+
+function getClockParts(date) {
+  const timeZone = getTimeZone();
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: settings.format === "12" ? "h12" : "h23"
+    }).formatToParts(date).map((part) => [part.type, part.value])
   );
 
-  if (!numberElement) return;
+  const hour24 = Number(new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "2-digit",
+    hourCycle: "h23"
+  }).format(date));
 
-  numberElement.classList.add("pop");
-
-  setTimeout(() => {
-    numberElement.classList.remove("pop");
-  }, 950);
+  return {
+    hour: Number(parts.hour),
+    hour24,
+    minute: Number(parts.minute),
+    second: Number(parts.second),
+    period: parts.dayPeriod || "",
+    timeZone
+  };
 }
 
-function stripeSlider(stripe, value) {
-  const tens = Math.floor(value / 10);
-  const units = value % 10;
-
-  if (!strips[stripe] || !strips[stripe + 1]) return;
-
-  strips[stripe].style.transform = `translateY(${-tens * numbersize}vmin)`;
-  highlight(stripe, tens);
-
-  strips[stripe + 1].style.transform = `translateY(${-units * numbersize}vmin)`;
-  highlight(stripe + 1, units);
+function getTimeZoneLabel(date, timeZone) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    timeZoneName: "short"
+  }).formatToParts(date).find((part) => part.type === "timeZoneName")?.value || timeZone;
 }
 
-function updateDate(now) {
-  const dateKey = [
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate()
-  ].join("-");
-
-  if (dateKey === lastRenderedDate) return;
-
-  lastRenderedDate = dateKey;
-  dateElement.textContent = now.toLocaleDateString(undefined, {
+function getDateLabel(date, timeZone) {
+  return new Intl.DateTimeFormat(undefined, {
+    timeZone,
     weekday: "long",
-    day: "numeric",
     month: "long",
+    day: "numeric",
     year: "numeric"
+  }).format(date);
+}
+
+function formatNumber(value) {
+  return String(value).padStart(2, "0");
+}
+
+function buildAnalogFace() {
+  const ticks = Array.from({ length: 60 }, (_, index) => {
+    const angle = index * 6;
+    const major = index % 5 === 0;
+    return `<span class="analog-tick ${major ? "major" : ""}" style="transform:rotate(${angle}deg) translateY(-99px)"></span>`;
+  }).join("");
+
+  const numerals = Array.from({ length: 12 }, (_, index) => {
+    const number = index + 1;
+    const angle = (number * 30 - 90) * Math.PI / 180;
+    const radius = 79 / 2.2;
+    const x = 50 + Math.cos(angle) * radius;
+    const y = 50 + Math.sin(angle) * radius;
+    return `<span class="analog-number" style="left:${x}%;top:${y}%">${number}</span>`;
+  }).join("");
+
+  clockFace.innerHTML = `<div class="analog-display" aria-hidden="true">
+    ${ticks}${numerals}
+    <span class="analog-hand hour" id="hourHand"></span>
+    <span class="analog-hand minute" id="minuteHand"></span>
+    <span class="analog-hand second" id="secondHand"></span>
+    <span class="analog-center"></span>
+  </div>`;
+}
+
+function setStyle(style) {
+  settings.style = VALID_STYLES.includes(style) ? style : DEFAULT_SETTINGS.style;
+
+  document.querySelectorAll("[data-style]").forEach((button) => {
+    const active = button.dataset.style === settings.style;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
   });
+
+  clockFace.className = `clock-face face-${settings.style}`;
+
+  if (settings.style === "analog") {
+    buildAnalogFace();
+  } else if (settings.style === "flip") {
+    clockFace.innerHTML = `<div class="flip-display" aria-hidden="true">
+      <span class="flip-digit" id="hourDigits">--</span><span class="time-separator">:</span>
+      <span class="flip-digit" id="minuteDigits">--</span><span class="time-separator seconds-separator">:</span>
+      <span class="flip-digit small-digit" id="secondDigits">--</span>
+    </div>`;
+  } else if (settings.style === "digital") {
+    clockFace.innerHTML = `<div class="digital-display" aria-hidden="true">
+      <span id="hourDigits">--</span><span class="colon">:</span><span id="minuteDigits">--</span><span class="colon seconds-colon">:</span>
+      <span class="seconds" id="secondDigits">--</span>
+    </div>`;
+  } else {
+    clockFace.innerHTML = `<div class="minimal-display" aria-hidden="true">
+      <span id="hourDigits">--</span><span class="colon">:</span><span id="minuteDigits">--</span>
+      <span class="seconds" id="secondDigits">--</span>
+    </div>`;
+  }
+
+  renderClock();
+  saveSettings();
+}
+
+function setTheme(theme, resetAccent = true) {
+  settings.theme = VALID_THEMES.includes(theme) ? theme : DEFAULT_SETTINGS.theme;
+  root.dataset.theme = settings.theme;
+
+  document.querySelectorAll(".theme-swatch").forEach((button) => {
+    const active = button.dataset.theme === settings.theme;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+
+  if (resetAccent) settings.accent = "";
+  applyAccent();
+  saveSettings();
+}
+
+function hexToRgb(hex) {
+  const number = Number.parseInt(hex.slice(1), 16);
+  return [(number >> 16) & 255, (number >> 8) & 255, number & 255];
+}
+
+function applyAccent() {
+  if (settings.accent) {
+    const [red, green, blue] = hexToRgb(settings.accent);
+    root.style.setProperty("--accent", settings.accent);
+    root.style.setProperty("--accent-rgb", `${red},${green},${blue}`);
+  } else {
+    root.style.removeProperty("--accent");
+    root.style.removeProperty("--accent-rgb");
+  }
+
+  const currentAccent = settings.accent ||
+    getComputedStyle(root).getPropertyValue("--accent").trim() || "#a78bfa";
+  accentInput.value = currentAccent;
+  accentValue.textContent = currentAccent.toUpperCase();
+}
+
+function setDigit(element, value, animate = false) {
+  if (!element || element.textContent === value) return;
+
+  element.textContent = value;
+
+  if (animate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    element.classList.remove("is-flipping");
+    void element.offsetWidth;
+    element.classList.add("is-flipping");
+  }
 }
 
 function updateClock() {
   const now = new Date();
-  let hours = now.getHours();
+  const parts = getClockParts(now);
+  const hourText = formatNumber(parts.hour);
+  const minuteText = formatNumber(parts.minute);
+  const secondText = formatNumber(parts.second);
 
-  updateDate(now);
-
-  if (!is24Hour) {
-    const isPM = hours >= 12;
-    hours = hours % 12 || 12;
-    ampmElement.textContent = isPM ? "PM" : "AM";
-    ampmElement.classList.remove("hidden");
+  if (settings.style === "analog") {
+    const hourAngle = ((parts.hour24 % 12) + parts.minute / 60) * 30;
+    const minuteAngle = (parts.minute + parts.second / 60) * 6;
+    const secondAngle = parts.second * 6;
+    document.getElementById("hourHand").style.transform = `translateX(-50%) rotate(${hourAngle}deg)`;
+    document.getElementById("minuteHand").style.transform = `translateX(-50%) rotate(${minuteAngle}deg)`;
+    document.getElementById("secondHand").style.transform = `translateX(-50%) rotate(${secondAngle}deg)`;
   } else {
-    ampmElement.textContent = "";
-    ampmElement.classList.add("hidden");
+    const hours = document.getElementById("hourDigits");
+    const minutes = document.getElementById("minuteDigits");
+    const seconds = document.getElementById("secondDigits");
+    const useFlipMotion = settings.style === "flip";
+    setDigit(hours, hourText, useFlipMotion);
+    setDigit(minutes, minuteText, useFlipMotion);
+    setDigit(seconds, secondText, useFlipMotion && settings.showSeconds);
   }
 
-  stripeSlider(0, hours);
-  stripeSlider(2, now.getMinutes());
-  stripeSlider(4, now.getSeconds());
+  clockFace.classList.toggle("hide-seconds", !settings.showSeconds);
+  dateLabel.hidden = !settings.showDate;
+  timezoneLabel.hidden = !settings.showTimezone;
+  dateLabel.textContent = getDateLabel(now, parts.timeZone);
+  timezoneLabel.textContent = `${getTimeZoneLabel(now, parts.timeZone)} · ${parts.timeZone}`;
+  dayPeriod.textContent = settings.format === "12" ? parts.period.toUpperCase() : "24 HOUR";
+  dayPeriod.hidden = settings.format !== "12";
 
-  const readableTime = now.toLocaleTimeString(undefined, {
-    hour: "2-digit",
+  const selectedOption = timeZoneSelect.options[timeZoneSelect.selectedIndex];
+  locationName.textContent = settings.timeZone === "local"
+    ? "YOUR LOCAL TIME"
+    : selectedOption.text.toUpperCase();
+
+  const readableTime = new Intl.DateTimeFormat(undefined, {
+    timeZone: parts.timeZone,
+    hour: "numeric",
     minute: "2-digit",
     second: "2-digit",
-    hour12: !is24Hour
-  });
-
-  clockElement.setAttribute("aria-label", `Current local time: ${readableTime}`);
-  formatToggle.setAttribute(
-    "aria-label",
-    is24Hour ? "Switch to 12-hour time format" : "Switch to 24-hour time format"
-  );
+    hour12: settings.format === "12"
+  }).format(now);
+  clockFace.setAttribute("aria-label", `Current time in ${parts.timeZone}: ${readableTime}`);
 }
 
-formatToggle.addEventListener("change", () => {
-  is24Hour = !formatToggle.checked;
+function renderClock() {
   updateClock();
+}
+
+function syncControls() {
+  timeZoneSelect.value = settings.timeZone;
+  if (timeZoneSelect.value !== settings.timeZone) {
+    settings.timeZone = "local";
+    timeZoneSelect.value = "local";
+  }
+
+  document.querySelectorAll("[data-format]").forEach((button) => {
+    const active = button.dataset.format === settings.format;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+
+  document.getElementById("showSeconds").checked = settings.showSeconds;
+  document.getElementById("showDate").checked = settings.showDate;
+  document.getElementById("showTimezone").checked = settings.showTimezone;
+
+  document.querySelectorAll(".theme-swatch").forEach((button) => {
+    const active = button.dataset.theme === settings.theme;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+
+  document.querySelectorAll("[data-style]").forEach((button) => {
+    const active = button.dataset.style === settings.style;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+}
+
+document.querySelectorAll("[data-style]").forEach((button) => {
+  button.addEventListener("click", () => setStyle(button.dataset.style));
 });
 
-const backgrounds = [
-  "linear-gradient(-45deg, #c4d3ef, #dfe6f6)",
-  "linear-gradient(135deg, #ff9a9e, #fad0c4)",
-  "linear-gradient(120deg, #a1c4fd, #c2e9fb)",
-  "linear-gradient(to right, #fbc2eb, #a6c1ee)",
-  "linear-gradient(60deg, #84fab0, #8fd3f4)",
-  "linear-gradient(180deg, #add8e6, #e6e6fa)",
-  "linear-gradient(0deg, #004e92, #7b4397)"
-];
-
-let backgroundIndex = 0;
-
-document.getElementById("bgToggle").addEventListener("click", () => {
-  backgroundIndex = (backgroundIndex + 1) % backgrounds.length;
-  document.body.style.background = backgrounds[backgroundIndex];
+document.querySelectorAll(".theme-swatch").forEach((button) => {
+  button.addEventListener("click", () => setTheme(button.dataset.theme));
 });
 
-// Render immediately so the clock is populated on first paint.
-updateClock();
-window.setInterval(updateClock, 1000);
+document.querySelectorAll("[data-format]").forEach((button) => {
+  button.addEventListener("click", () => {
+    settings.format = button.dataset.format;
+    syncControls();
+    renderClock();
+    saveSettings();
+  });
+});
+
+timeZoneSelect.addEventListener("change", () => {
+  settings.timeZone = timeZoneSelect.value;
+  renderClock();
+  saveSettings();
+});
+
+accentInput.addEventListener("input", () => {
+  settings.accent = accentInput.value;
+  applyAccent();
+  saveSettings();
+});
+
+[
+  ["showSeconds", "showSeconds"],
+  ["showDate", "showDate"],
+  ["showTimezone", "showTimezone"]
+].forEach(([elementId, key]) => {
+  document.getElementById(elementId).addEventListener("change", (event) => {
+    settings[key] = event.target.checked;
+    renderClock();
+    saveSettings();
+  });
+});
+
+document.getElementById("resetSettings").addEventListener("click", () => {
+  settings = { ...DEFAULT_SETTINGS };
+  root.dataset.theme = settings.theme;
+  applyAccent();
+  syncControls();
+  setStyle(settings.style);
+  saveSettings();
+});
+
+function initialize() {
+  root.dataset.theme = settings.theme;
+  syncControls();
+  applyAccent();
+  setStyle(settings.style);
+  window.setInterval(updateClock, 1000);
+}
+
+initialize();
