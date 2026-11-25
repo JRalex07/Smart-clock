@@ -165,7 +165,7 @@ function setStyle(style) {
     </div>`;
   } else if (settings.style === "digital") {
     clockFace.innerHTML = `<div class="digital-display" aria-hidden="true">
-      <span id="hourDigits">--</span><span class="colon">:</span><span id="minuteDigits">--</span>
+      <span id="hourDigits">--</span><span class="colon">:</span><span id="minuteDigits">--</span><span class="colon seconds-colon">:</span>
       <span class="seconds" id="secondDigits">--</span>
     </div>`;
   } else {
